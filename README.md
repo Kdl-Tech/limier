@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛰️ OSINT Trace
+# 🐕 Limier
 
 **Recherche d'empreinte numérique en sources ouvertes — éthique et légale.**
 
@@ -14,7 +14,7 @@
 
 ## ⚠️ Usage responsable
 
-OSINT Trace agrège **uniquement des informations publiquement accessibles**, dans un
+Limier agrège **uniquement des informations publiquement accessibles**, dans un
 cadre **légal**. Au démarrage, l'application impose le choix d'une **base légale**
 (RGPD, art. 6) et la journalise :
 

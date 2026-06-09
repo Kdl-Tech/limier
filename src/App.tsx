@@ -190,7 +190,7 @@ function App() {
             </div>
             <div>
               <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight">
-                OSINT&nbsp;Trace
+                Limier
                 <span className="font-mono text-xs text-muted-foreground">v0.1</span>
               </h1>
               <p className="text-sm text-muted-foreground">
@@ -358,7 +358,7 @@ function App() {
 
       <footer className="mx-auto max-w-6xl px-5 py-6 text-xs text-muted-foreground">
         <div className="flex flex-col items-center justify-between gap-2 border-t border-border/60 pt-5 sm:flex-row">
-          <span>OSINT Trace — open-source (MIT) · KDL</span>
+          <span>Limier — open-source (MIT) · KDL</span>
           <span className="flex items-center gap-1.5">
             <Fingerprint className="size-3.5" /> Données traitées localement, dans le respect du RGPD.
           </span>

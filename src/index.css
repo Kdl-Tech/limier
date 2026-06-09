@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  OSINT Trace — thème "console d'investigation" (sombre par défaut).
+  Limier — thème "console d'investigation" (sombre par défaut).
   Palette : slate très sombre, accent cyan, alertes ambre/rouge.
 */
 :root {
