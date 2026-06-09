@@ -2,71 +2,102 @@
 
 # 🐕 Limier
 
-**Recherche d'empreinte numérique en sources ouvertes — éthique et légale.**
+**Recherche OSINT légale en sources ouvertes.**
+Assistant d'enquête open-source — collecte, classe, cite ses sources, note la confiance.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-22d3ee.svg)](LICENSE)
-![Tauri](https://img.shields.io/badge/Tauri-2-24c8db)
+![PWA](https://img.shields.io/badge/PWA-installable-24c8db)
 ![React](https://img.shields.io/badge/React-19-61dafb)
+
+🌐 **Démo : https://limier.kdl-tech.fr**
 
 </div>
 
 ---
 
-## ⚠️ Usage responsable
+## ⚠️ Usage responsable (legal by design)
 
-Limier agrège **uniquement des informations publiquement accessibles**, dans un
-cadre **légal**. Au démarrage, l'application impose le choix d'une **base légale**
-(RGPD, art. 6) et la journalise :
+Limier agrège **uniquement** des informations **publiques et légales**. Avant toute
+recherche, l'utilisateur doit déclarer une **base légale** (RGPD) :
 
-- 🧍 **votre propre** empreinte numérique ;
-- 🤝 une personne **consentante** ;
-- 🕵️ un **cadre professionnel légitime** (enquête, journalisme, conformité).
+1. Ma propre empreinte numérique
+2. Une personne ayant donné son consentement
+3. Recherche généalogique / familiale non intrusive
+4. Investigation professionnelle encadrée
 
-L'outil **n'accède jamais** à des bases de données volées, ni à du contenu derrière
-authentification, et **ne contourne** aucune protection. Le profilage d'un tiers sans
-base légale est interdit. **Vous êtes responsable de l'usage que vous en faites.**
+…et accepter de **ne pas** utiliser Limier pour harceler, profiler illégalement,
+doxxer ou surveiller une personne.
 
-## ✨ Fonctionnalités
+### Ce que Limier **ne fait pas**
+- ❌ Pas de recherche d'adresse/téléphone privé d'un tiers, pas de doxxing.
+- ❌ Pas de bases volées, pas de contournement de connexion, pas de data brokers douteux.
+- ❌ Pas de reconnaissance faciale, pas de collecte/profilage d'enfants.
+- ❌ Pas de scraping agressif des moteurs (requêtes « prêtes à ouvrir » à la place).
 
-- Recherche multi-éléments : nom, prénom(s), e-mail, pseudo, **téléphone (actuel ou ancien)**, ville, employeur…
-- Collecteurs modulaires sur **sources publiques** : pseudos (multi-plateformes),
-  e-mail & fuites publiques, téléphone, domaines/WHOIS, réseaux sociaux publics,
-  recherche d'images, moteurs & archives.
-- **Journal d'investigation** en temps réel.
-- Traitement **local-first** : les données restent sur votre machine.
-- Interface sobre « console d'investigation » (thème sombre).
+## ✨ Fonctionnalités V1 (résultats réels & sourcés)
+
+| Module | Méthode (légale) | Statut |
+|---|---|---|
+| **Pseudo** | présence sur 14 plateformes publiques (API/HTTP officiels) | ✅ réel |
+| **Domaine** | RDAP/WHOIS + DNS (A/NS/TXT/MX) | ✅ réel |
+| **E-mail** | syntaxe + MX du domaine + Gravatar public | ✅ réel |
+| **Téléphone** | normalisation E.164 + pays probable (aucun reverse-lookup) | 🟡 normalisation |
+| **Nom** | requêtes web légales prêtes à ouvrir (ou API officielle si clé) | 🟡 liens |
+
+Chaque résultat porte : **source, URL, date de collecte, confiance** (fort/moyen/faible),
+**sensibilité** (public / personnel possible / sensible), **raison du score**, **action recommandée**.
+Les éléments **sensibles sont masqués par défaut**. Export du rapport en **Markdown**.
 
 ## 🧱 Stack
 
-| Couche | Techno |
-|---|---|
-| Cœur multiplateforme | **Tauri 2** (Rust) → Windows `.exe`, Android `.apk`, Linux, macOS, web |
-| Interface | **React 19 + Vite + TypeScript** |
-| Design | **Tailwind CSS v4 + shadcn/ui** |
-| Collecte | Backend **Rust** (requêtes réseau sans CORS) |
+- **Frontend** : React 19 + Vite + TypeScript + Tailwind v4 + shadcn/ui — **PWA** installable, thème sombre.
+- **Backend** : Node (zéro dépendance, `fetch` global), `server/server.js` — sous PM2.
+- **Sources** : API publiques des plateformes, DNS, RDAP. Aucune authentification.
 
-## 🚀 Développement
+## 🚀 Installation (dev)
 
 ```bash
 npm install
-npm run dev          # interface web (http://localhost:5173)
-npm run tauri dev    # application de bureau (nécessite Rust + webkit2gtk)
+npm run dev                 # interface web (http://localhost:5173)
+node server/server.js       # backend de collecte (http://127.0.0.1:4123)
 ```
 
-### Builds
+En local, le frontend appelle automatiquement l'API de production si aucun backend local.
+
+### Build
 ```bash
-npm run tauri build              # .exe / binaire bureau
-npm run tauri android build      # .apk (toolchain Android requise)
+npm run build               # -> dist/ (statique + PWA)
+npm run lint
 ```
 
-## 🗺️ Feuille de route
+## 🔧 Variables d'environnement (backend)
 
-- [x] Fondation Tauri + UI + thème
-- [x] Portail base légale (RGPD) + journalisation
-- [ ] Moteur de collecte Rust (1er collecteur : pseudos)
-- [ ] Graphe de liens entre entités
-- [ ] Export de rapport (PDF / JSON)
-- [ ] Packaging `.exe` et `.apk`
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `PORT` | port d'écoute du backend | `4123` |
+| `BRAVE_API_KEY` | (optionnel) recherche web via API officielle Brave ; **si absent**, Limier ne scrape pas et fournit des requêtes prêtes à ouvrir | — |
+
+> Les clés ne sont **jamais** committées : placez-les dans un `.env` (ignoré par git).
+
+## 🌐 Déploiement (référence)
+
+- `dist/` servi en statique par **nginx** (HTTPS via Let's Encrypt).
+- `server/server.js` lancé sous **PM2** ; nginx proxifie `/api/` vers `127.0.0.1:4123`.
+- Healthcheck : `GET /api/health`.
+
+## 🧪 Modèle de résultat
+
+```jsonc
+{ "id", "collector", "type", "title", "url", "excerpt", "detail": [],
+  "source", "collectedAt", "confidence": "fort|moyen|faible",
+  "reason", "sensitivity": "public|potentiellement_personnel|sensible",
+  "found", "status", "recommendation" }
+```
+
+## 🧭 Limites
+
+Limier **ne garantit pas l'identité** : un même pseudo n'implique pas la même personne.
+Les résultats sont des **pistes à vérifier** via leurs sources. Toujours recouper.
 
 ## 📄 Licence
 

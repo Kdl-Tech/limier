@@ -1,30 +1,16 @@
 import { useState } from "react"
-import { Scale, ShieldCheck, User, UserCheck, Briefcase, type LucideIcon } from "lucide-react"
+import { Scale, ShieldCheck, User, UserCheck, Users, Briefcase, type LucideIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
-export type LegalBasis = "self" | "consent" | "professional"
+export type LegalBasis = "self" | "consent" | "genealogy" | "professional"
 
 const OPTIONS: { key: LegalBasis; label: string; desc: string; icon: LucideIcon }[] = [
-  {
-    key: "self",
-    label: "Ma propre empreinte",
-    desc: "Je recherche des informations qui me concernent moi-même.",
-    icon: User,
-  },
-  {
-    key: "consent",
-    label: "Personne consentante",
-    desc: "La personne concernée m'a donné son accord explicite.",
-    icon: UserCheck,
-  },
-  {
-    key: "professional",
-    label: "Cadre professionnel légitime",
-    desc: "Enquête, journalisme ou conformité avec base légale (RGPD, art. 6).",
-    icon: Briefcase,
-  },
+  { key: "self", label: "Ma propre empreinte numérique", desc: "Je recherche des informations qui me concernent moi-même.", icon: User },
+  { key: "consent", label: "Personne ayant donné son consentement", desc: "La personne concernée m'a donné son accord explicite.", icon: UserCheck },
+  { key: "genealogy", label: "Recherche généalogique / familiale non intrusive", desc: "Retrouver de la famille, ascendance — sans surveillance ni intrusion.", icon: Users },
+  { key: "professional", label: "Investigation professionnelle encadrée", desc: "Journalisme, conformité, enquête avec base légale (RGPD, art. 6).", icon: Briefcase },
 ]
 
 export function ConsentGate({ onConfirm }: { onConfirm: (basis: LegalBasis) => void }) {
@@ -80,8 +66,9 @@ export function ConsentGate({ onConfirm }: { onConfirm: (basis: LegalBasis) => v
             className="mt-0.5 size-4 accent-primary"
           />
           <span>
-            Je m'engage à un usage licite, sur des <strong className="text-foreground">sources publiques uniquement</strong>,
-            dans le respect de la vie privée et du RGPD.
+            Je confirme avoir une <strong className="text-foreground">base légale</strong> pour cette recherche et je
+            m'engage à ne pas utiliser Limier pour <strong className="text-foreground">harceler, profiler illégalement,
+            doxxer ou surveiller</strong> une personne.
           </span>
         </label>
 
