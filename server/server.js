@@ -13,6 +13,15 @@ const http = require("node:http");
 const crypto = require("node:crypto");
 const dns = require("node:dns").promises;
 
+// Chargement optionnel d'un .env local (jamais committé) — ex. BRAVE_API_KEY.
+try {
+  const fs = require("node:fs");
+  for (const line of fs.readFileSync(__dirname + "/.env", "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "").trim();
+  }
+} catch {}
+
 const PORT = process.env.PORT || 4123;
 const UA = "Mozilla/5.0 (compatible; LimierOSINT/1.0; +https://limier.kdl-tech.fr)";
 const now = () => new Date().toISOString();
@@ -53,6 +62,22 @@ async function probe(url) {
     const body = await r.text().catch(() => "");
     return { status: r.status, ok: r.ok, body };
   } catch { return { status: 0, ok: false, body: "" }; }
+  finally { clearTimeout(t); }
+}
+
+// Recherche web via API officielle Brave (légale). Activée si BRAVE_API_KEY est défini.
+async function braveSearch(query, key) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), 8000);
+  try {
+    const r = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=6&country=fr`, {
+      signal: ac.signal,
+      headers: { Accept: "application/json", "Accept-Encoding": "gzip", "X-Subscription-Token": key, "User-Agent": UA },
+    });
+    if (!r.ok) return { ok: false, status: r.status, results: [] };
+    const j = await r.json();
+    return { ok: true, status: 200, results: (j.web && j.web.results) || [] };
+  } catch { return { ok: false, status: 0, results: [] }; }
   finally { clearTimeout(t); }
 }
 
@@ -152,18 +177,31 @@ async function moduleName(name, ctx) {
   const full = [name, ctx.city, ctx.employer].filter(Boolean).join(" ");
   const q = (s) => encodeURIComponent(s);
   const out = [];
-  // Si une clé d'API de recherche est configurée, on l'utiliserait ici (Brave/Bing). Sinon : requêtes prêtes.
-  const hasKey = !!process.env.BRAVE_API_KEY;
-  const queries = [
+  const key = process.env.BRAVE_API_KEY;
+
+  // A. Recherche web via API officielle Brave (si clé configurée) — résultats réels et sourcés.
+  if (key) {
+    const { ok, results } = await braveSearch(full || name, key);
+    for (const w of results.slice(0, 6)) {
+      out.push(item({ collector: "name", type: "page_web", title: w.title || w.url, url: w.url,
+        excerpt: (w.description || "").replace(/<[^>]+>/g, ""), found: true, status: "trouvé",
+        confidence: "moyen", reason: "Résultat renvoyé par l'API officielle Brave Search pour cette requête (à recouper).",
+        source: "Brave Search API", sensitivity: "potentiellement_personnel" }));
+    }
+    if (!ok) out.push(item({ collector: "name", type: "requete", title: "Recherche web (API Brave)", found: false, status: "indisponible", confidence: "faible", reason: "API Brave momentanément indisponible — repli sur les liens manuels.", source: "Brave Search API", sensitivity: "public" }));
+  }
+
+  // B. Toujours : quelques requêtes légales prêtes à ouvrir (vérification manuelle, pas de scraping).
+  const ready = [
     { n: "Google", u: `https://www.google.com/search?q=${q('"' + name + '" ' + (ctx.city || ""))}` },
-    { n: "Bing", u: `https://www.bing.com/search?q=${q('"' + name + '" ' + (ctx.city || ""))}` },
-    { n: "DuckDuckGo", u: `https://duckduckgo.com/?q=${q('"' + name + '"')}` },
     { n: "LinkedIn (public)", u: `https://www.bing.com/search?q=${q('site:linkedin.com/in "' + name + '"')}` },
   ];
-  for (const x of queries) {
-    out.push(item({ collector: "name", type: "requete", title: `Recherche prête : ${x.n}`, url: x.u, found: false, status: "à vérifier", confidence: "faible", reason: hasKey ? "API de recherche non activée pour cette requête — lien public fourni." : "Aucune clé d'API de recherche configurée : Limier ne scrape pas les moteurs. Ouvre le lien pour vérifier toi-même.", detail: [`Requête : ${full}`], source: "requête publique générée (non scrapée)", sensitivity: "public" }));
+  for (const x of ready) {
+    out.push(item({ collector: "name", type: "requete", title: `Recherche prête : ${x.n}`, url: x.u, found: false, status: "à vérifier",
+      confidence: "faible", reason: key ? "Lien public complémentaire à ouvrir manuellement." : "Aucune clé d'API : Limier ne scrape pas les moteurs — ouvre le lien pour vérifier toi-même.",
+      detail: [`Requête : ${full}`], source: "requête publique générée (non scrapée)", sensitivity: "public" }));
   }
-  return { id: "name", label: "Nom / recherche web", input: full, found: 0, total: out.length, items: out };
+  return { id: "name", label: "Nom / recherche web", input: full, found: out.filter((i) => i.found).length, total: out.length, items: out };
 }
 
 function send(res, code, obj) {
