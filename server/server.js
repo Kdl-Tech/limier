@@ -81,6 +81,19 @@ async function braveSearch(query, key) {
   finally { clearTimeout(t); }
 }
 
+// Recherche web via API officielle Google Programmable Search (gratuite 100/jour).
+async function googleSearch(query, key, cx) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), 8000);
+  try {
+    const r = await fetch(`https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&num=6&gl=fr&hl=fr&q=${encodeURIComponent(query)}`, { signal: ac.signal, headers: { Accept: "application/json", "User-Agent": UA } });
+    if (!r.ok) return { ok: false, status: r.status, results: [] };
+    const j = await r.json();
+    return { ok: true, status: 200, results: (j.items || []).map((x) => ({ title: x.title, url: x.link, description: x.snippet })) };
+  } catch { return { ok: false, status: 0, results: [] }; }
+  finally { clearTimeout(t); }
+}
+
 /* ===================== A. PSEUDO ===================== */
 const PLATEFORMES = [
   { n: "GitHub", cat: "Dev", strong: true, url: (u) => `https://github.com/${u}`, via: (u) => `https://api.github.com/users/${u}`, check: async (u) => { const r = await probe(`https://api.github.com/users/${u}`); return { found: r.status === 200, signal: `HTTP ${r.status}` }; } },
@@ -177,18 +190,21 @@ async function moduleName(name, ctx) {
   const full = [name, ctx.city, ctx.employer].filter(Boolean).join(" ");
   const q = (s) => encodeURIComponent(s);
   const out = [];
-  const key = process.env.BRAVE_API_KEY;
+  const gKey = process.env.GOOGLE_CSE_KEY, gCx = process.env.GOOGLE_CSE_CX;
+  const bKey = process.env.BRAVE_API_KEY;
 
-  // A. Recherche web via API officielle Brave (si clé configurée) — résultats réels et sourcés.
-  if (key) {
-    const { ok, results } = await braveSearch(full || name, key);
+  // A. Recherche web via API officielle (Google Programmable Search prioritaire, sinon Brave).
+  let provider = null, ok = false, results = [];
+  if (gKey && gCx) { provider = "Google Programmable Search"; ({ ok, results } = await googleSearch(full || name, gKey, gCx)); }
+  else if (bKey) { provider = "Brave Search API"; ({ ok, results } = await braveSearch(full || name, bKey)); }
+  if (provider) {
     for (const w of results.slice(0, 6)) {
       out.push(item({ collector: "name", type: "page_web", title: w.title || w.url, url: w.url,
         excerpt: (w.description || "").replace(/<[^>]+>/g, ""), found: true, status: "trouvé",
-        confidence: "moyen", reason: "Résultat renvoyé par l'API officielle Brave Search pour cette requête (à recouper).",
-        source: "Brave Search API", sensitivity: "potentiellement_personnel" }));
+        confidence: "moyen", reason: `Résultat renvoyé par l'API officielle ${provider} pour cette requête (à recouper).`,
+        source: provider, sensitivity: "potentiellement_personnel" }));
     }
-    if (!ok) out.push(item({ collector: "name", type: "requete", title: "Recherche web (API Brave)", found: false, status: "indisponible", confidence: "faible", reason: "API Brave momentanément indisponible — repli sur les liens manuels.", source: "Brave Search API", sensitivity: "public" }));
+    if (!ok) out.push(item({ collector: "name", type: "requete", title: `Recherche web (${provider})`, found: false, status: "indisponible", confidence: "faible", reason: "API officielle momentanément indisponible — repli sur les liens manuels.", source: provider, sensitivity: "public" }));
   }
 
   // B. Toujours : quelques requêtes légales prêtes à ouvrir (vérification manuelle, pas de scraping).
@@ -198,7 +214,7 @@ async function moduleName(name, ctx) {
   ];
   for (const x of ready) {
     out.push(item({ collector: "name", type: "requete", title: `Recherche prête : ${x.n}`, url: x.u, found: false, status: "à vérifier",
-      confidence: "faible", reason: key ? "Lien public complémentaire à ouvrir manuellement." : "Aucune clé d'API : Limier ne scrape pas les moteurs — ouvre le lien pour vérifier toi-même.",
+      confidence: "faible", reason: provider ? "Lien public complémentaire à ouvrir manuellement." : "Aucune clé d'API : Limier ne scrape pas les moteurs — ouvre le lien pour vérifier toi-même.",
       detail: [`Requête : ${full}`], source: "requête publique générée (non scrapée)", sensitivity: "public" }));
   }
   return { id: "name", label: "Nom / recherche web", input: full, found: out.filter((i) => i.found).length, total: out.length, items: out };
@@ -211,7 +227,7 @@ function send(res, code, obj) {
 
 const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS" }); return res.end(); }
-  if (req.method === "GET" && req.url.startsWith("/api/health")) { return send(res, 200, { ok: true, service: "limier-api", version: "1.0", platforms: PLATEFORMES.length, modules: ["username", "email", "domain", "phone", "name"], searchApi: !!process.env.BRAVE_API_KEY }); }
+  if (req.method === "GET" && req.url.startsWith("/api/health")) { return send(res, 200, { ok: true, service: "limier-api", version: "1.0", platforms: PLATEFORMES.length, modules: ["username", "email", "domain", "phone", "name"], searchApi: (process.env.GOOGLE_CSE_KEY && process.env.GOOGLE_CSE_CX) ? "google" : (process.env.BRAVE_API_KEY ? "brave" : false) }); }
   if (req.method === "POST" && req.url.startsWith("/api/search")) {
     let data = "";
     req.on("data", (c) => { data += c; if (data.length > 2e4) req.destroy(); });
