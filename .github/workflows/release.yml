@@ -58,6 +58,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-22.04
+    continue-on-error: true # APK non-bloquant tant que la signature n'est pas configurée
     steps:
       - uses: actions/checkout@v4
 
@@ -90,8 +91,8 @@ jobs:
       - name: Initialiser le projet Android (si absent)
         run: npx tauri android init || true
 
-      - name: Build APK
-        run: npx tauri android build --apk
+      - name: Build APK (debug, non signé)
+        run: npx tauri android build --apk --debug
 
       - name: Publier l'APK (artefact)
         uses: actions/upload-artifact@v4
